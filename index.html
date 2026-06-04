@@ -15,6 +15,8 @@
             height: 100vh;
             font-family: sans-serif;
             overflow: hidden;
+            /* 모바일 터치 시 생기는 파란색 잔상 방지 */
+            -webkit-tap-highlight-color: transparent; 
         }
         .container {
             width: 100%;
@@ -44,10 +46,29 @@
             width: 100%;
             height: 100%;
             object-fit: contain; /* 이미지가 잘리지 않고 가득 차게 설정 */
+            
+            /* [모바일 깜빡임 방지 핵심] GPU 하드웨어 가속 및 뒷면 숨김 활성화 */
+            -webkit-backface-visibility: hidden;
+            backface-visibility: hidden;
+            transform: translate3d(0, 0, 0);
+            will-change: transform;
         }
     </style>
 </head>
 <body>
+
+<div style="width: 0; height: 0; overflow: hidden; visibility: hidden; display: none;">
+    <img src="page1.jpg">
+    <img src="page2.jpg">
+    <img src="page3.jpg">
+    <img src="page4.jpg">
+    <img src="page5.jpg">
+    <img src="page6.jpg">
+    <img src="page7.jpg">
+    <img src="page8.jpg">
+    <img src="page9.jpg">
+    <img src="page10.jpg">
+</div>
 
 <div class="container">
     <div class="flip-book" id="book">
@@ -61,15 +82,13 @@
         <div class="page"><div class="page-content"><img src="page8.jpg" alt="8페이지"></div></div>
         <div class="page"><div class="page-content"><img src="page9.jpg" alt="9페이지"></div></div>
         <div class="page"><div class="page-content"><img src="page10.jpg" alt="10페이지"></div></div>
-    
-</div>
+    </div>
 </div>
 
 <script src="https://cdn.jsdelivr.net/npm/page-flip@0.4.3/dist/js/page-flip.browser.min.js"></script>
 <script>
     document.addEventListener("DOMContentLoaded", function() {
-        // 이미지가 세로형(A4 등)인지 가로형인지에 따라 가로/세로 비율(width, height)을 조절해 주세요.
-        // 예: 일반적인 A4 한 면 기준 가로 400, 세로 560 정도가 적당합니다.
+        // 일반적인 A4 한 면 기준 가로 400, 세로 560 비율 설정
         const pageFlip = new St.PageFlip(document.getElementById("book"), {
             width: 400, 
             height: 560,
