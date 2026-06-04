@@ -50,24 +50,28 @@
             background: #1a73e8;
         }
 
-        /* [추가] 눈에 보이지 않는 좌우 터치 영역 설계 (글씨를 절대 가리지 않음) */
-        .click-zone-left {
+        /* [수정] 투명 클릭 영역이 스와이프(드래그) 터치를 방해하지 않도록 개선 */
+        .click-zones {
             position: absolute;
             left: 0;
             top: 0;
-            width: 30%; /* 화면 왼쪽 30% 영역 */
-            height: 100%;
-            z-index: 10; /* 소식지 이미지보다 위에 배치 */
-            cursor: pointer;
-        }
-        .click-zone-right {
-            position: absolute;
-            right: 0;
-            top: 0;
-            width: 70%; /* 화면 오른쪽 70% 영역 (보통 오른손으로 많이 누르므로 더 넓게 설정) */
+            width: 100%;
             height: 100%;
             z-index: 10;
+            display: flex;
+            pointer-events: none; /* 하위 요소인 슬라이더에 터치 이벤트를 통과시킴 */
+        }
+        .zone-left {
+            width: 30%;
+            height: 100%;
             cursor: pointer;
+            pointer-events: auto; /* 클릭 영역만 선택적으로 터치 허용 */
+        }
+        .zone-right {
+            width: 70%;
+            height: 100%;
+            cursor: pointer;
+            pointer-events: auto; /* 클릭 영역만 선택적으로 터치 허용 */
         }
     </style>
 </head>
@@ -81,9 +85,11 @@
 
 <!-- 소식지 본체 -->
 <div class="swiper mySwiper">
-    <!-- [변경] 양옆 화살표 HTML 태그를 삭제하고 투명한 클릭 감지 구역 배치 -->
-    <div class="click-zone-left" onclick="swiper.slidePrev()"></div>
-    <div class="click-zone-right" onclick="swiper.slideNext()"></div>
+    <!-- [구조 개선] 클릭 감지 영역 레이아웃 변경 -->
+    <div class="click-zones">
+        <div class="zone-left" onclick="swiper.slidePrev()"></div>
+        <div class="zone-right" onclick="swiper.slideNext()"></div>
+    </div>
 
     <div class="swiper-wrapper">
         <div class="swiper-slide"><div class="swiper-zoom-container"><img src="page1.jpg" alt="1페이지"></div></div>
@@ -98,15 +104,15 @@
         <div class="swiper-slide"><div class="swiper-zoom-container"><img src="page10.jpg" alt="10페이지"></div></div>
     </div>
     
-    <!-- 하단 페이지 도트 (현재 위치를 알기 위해 남겨둠) -->
+    <!-- 하단 페이지 도트 -->
     <div class="swiper-pagination"></div>
 </div>
 
 <script src="https://cdn.jsdelivr.net/npm/swiper@11/swiper-bundle.min.js"></script>
 <script>
-    // 클릭 이벤트를 자바스크립트에서 제어하기 위해 const swiper 변수로 전역 선언
     const swiper = new Swiper(".mySwiper", {
         effect: "slide", 
+        touchStartPreventDefault: false, /* 모바일 스와이프 감도 개선 */
         zoom: {
             maxRatio: 3, 
             toggle: true, 
