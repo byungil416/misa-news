@@ -1,120 +1,427 @@
 <!DOCTYPE html>
 <html lang="ko">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
-    <title>정상어학원 이달의 소식지</title>
-    
-    <!-- Swiper 라이브러리 -->
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/swiper@11/swiper-bundle.min.css" />
-    
-    <style>
-        html, body {
-            position: relative;
-            height: 100%;
-            margin: 0;
-            padding: 0;
-            background-color: #f0f2f5;
-            font-family: sans-serif;
-            overflow: hidden;
-        }
-        .swiper {
-            width: 100%;
-            height: 100%;
-            max-width: 500px;
-            margin: 0 auto;
-            position: relative;
-        }
-        .swiper-slide {
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            background: #f0f2f5;
-        }
-        .swiper-zoom-container {
-            width: 100%;
-            height: 100%;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-        }
-        .swiper-zoom-container img {
-            max-width: 95%;
-            max-height: 90vh;
-            object-fit: contain;
-            box-shadow: 0 10px 25px rgba(0,0,0,0.15);
-            background: #fff;
-            border-radius: 4px;
-        }
-        .swiper-pagination-bullet-active {
-            background: #1a73e8;
-        }
-    </style>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Newsletter Slide Viewer</title>
+
+  <style>
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      font-family: Arial, "Noto Sans KR", sans-serif;
+      background: #222;
+      color: #fff;
+      overflow: hidden;
+    }
+
+    .viewer {
+      width: 100vw;
+      height: 100vh;
+      display: flex;
+      flex-direction: column;
+      background: radial-gradient(circle, #444 0%, #1c1c1c 70%);
+    }
+
+    .topbar {
+      height: 56px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0 18px;
+      background: rgba(0, 0, 0, 0.55);
+      z-index: 10;
+    }
+
+    .title {
+      font-size: 15px;
+      font-weight: 600;
+    }
+
+    .buttons {
+      display: flex;
+      gap: 8px;
+      align-items: center;
+    }
+
+    button {
+      border: 0;
+      background: rgba(255, 255, 255, 0.15);
+      color: #fff;
+      padding: 8px 12px;
+      border-radius: 8px;
+      cursor: pointer;
+      font-size: 14px;
+    }
+
+    button:hover {
+      background: rgba(255, 255, 255, 0.3);
+    }
+
+    button:disabled {
+      opacity: 0.35;
+      cursor: not-allowed;
+    }
+
+    .slide-area {
+      flex: 1;
+      position: relative;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      overflow: hidden;
+    }
+
+    .slide-box {
+      width: 100%;
+      height: 100%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: transform 0.25s ease;
+    }
+
+    .slide-img {
+      max-width: 92vw;
+      max-height: calc(100vh - 145px);
+      object-fit: contain;
+      background: #fff;
+      box-shadow: 0 20px 40px rgba(0, 0, 0, 0.55);
+      border-radius: 8px;
+      transition: opacity 0.25s ease, transform 0.25s ease;
+      user-select: none;
+    }
+
+    .slide-img.fade {
+      opacity: 0;
+      transform: scale(0.98);
+    }
+
+    .nav-zone {
+      position: absolute;
+      top: 0;
+      bottom: 0;
+      width: 25%;
+      cursor: pointer;
+      z-index: 5;
+    }
+
+    .nav-left {
+      left: 0;
+    }
+
+    .nav-right {
+      right: 0;
+    }
+
+    .arrow {
+      position: absolute;
+      top: 50%;
+      transform: translateY(-50%);
+      font-size: 64px;
+      opacity: 0;
+      transition: opacity 0.2s ease;
+      text-shadow: 0 2px 12px rgba(0, 0, 0, 0.8);
+      pointer-events: none;
+    }
+
+    .nav-left .arrow {
+      left: 28px;
+    }
+
+    .nav-right .arrow {
+      right: 28px;
+    }
+
+    .nav-zone:hover .arrow {
+      opacity: 0.75;
+    }
+
+    .bottom-bar {
+      height: 88px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 12px;
+      padding: 12px 20px;
+      background: rgba(0, 0, 0, 0.55);
+      z-index: 10;
+    }
+
+    .page-info {
+      min-width: 90px;
+      text-align: center;
+      font-size: 14px;
+    }
+
+    input[type="range"] {
+      width: min(50vw, 520px);
+      accent-color: white;
+    }
+
+    .thumbs {
+      position: absolute;
+      left: 50%;
+      bottom: 100px;
+      transform: translateX(-50%);
+      width: min(92vw, 900px);
+      display: none;
+      gap: 8px;
+      padding: 10px;
+      background: rgba(0, 0, 0, 0.65);
+      border-radius: 14px;
+      overflow-x: auto;
+      z-index: 20;
+    }
+
+    .thumbs.show {
+      display: flex;
+    }
+
+    .thumb {
+      width: 70px;
+      height: 95px;
+      flex: 0 0 auto;
+      border-radius: 6px;
+      overflow: hidden;
+      border: 2px solid transparent;
+      cursor: pointer;
+      background: #fff;
+    }
+
+    .thumb.active {
+      border-color: #fff;
+      transform: translateY(-3px);
+    }
+
+    .thumb img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      display: block;
+    }
+
+    @media (max-width: 700px) {
+      .topbar {
+        height: 52px;
+        padding: 0 10px;
+      }
+
+      .title {
+        font-size: 13px;
+      }
+
+      button {
+        padding: 7px 9px;
+        font-size: 12px;
+      }
+
+      .bottom-bar {
+        height: 76px;
+        gap: 8px;
+        padding: 10px;
+      }
+
+      input[type="range"] {
+        width: 38vw;
+      }
+
+      .page-info {
+        min-width: 70px;
+        font-size: 13px;
+      }
+
+      .slide-img {
+        max-width: 94vw;
+        max-height: calc(100vh - 130px);
+      }
+
+      .arrow {
+        font-size: 46px;
+      }
+    }
+  </style>
 </head>
+
 <body>
+  <div class="viewer">
+    <div class="topbar">
+      <div class="title">Newsletter</div>
 
-<!-- 이미지 사전 로딩 -->
-<div style="width:0; height:0; overflow:hidden; visibility:hidden; display:none;">
-    <img src="page1.jpg"><img src="page2.jpg"><img src="page3.jpg"><img src="page4.jpg"><img src="page5.jpg">
-    <img src="page6.jpg"><img src="page7.jpg"><img src="page8.jpg"><img src="page9.jpg"><img src="page10.jpg">
-</div>
-
-<!-- 소식지 본체 (방해하던 투명 click-zone 태그들을 완전히 삭제했습니다) -->
-<div class="swiper mySwiper">
-    <div class="swiper-wrapper">
-        <div class="swiper-slide"><div class="swiper-zoom-container"><img src="page1.jpg" alt="1페이지"></div></div>
-        <div class="swiper-slide"><div class="swiper-zoom-container"><img src="page2.jpg" alt="2페이지"></div></div>
-        <div class="swiper-slide"><div class="swiper-zoom-container"><img src="page3.jpg" alt="3페이지"></div></div>
-        <div class="swiper-slide"><div class="swiper-zoom-container"><img src="page4.jpg" alt="4페이지"></div></div>
-        <div class="swiper-slide"><div class="swiper-zoom-container"><img src="page5.jpg" alt="5페이지"></div></div>
-        <div class="swiper-slide"><div class="swiper-zoom-container"><img src="page6.jpg" alt="6페이지"></div></div>
-        <div class="swiper-slide"><div class="swiper-zoom-container"><img src="page7.jpg" alt="7페이지"></div></div>
-        <div class="swiper-slide"><div class="swiper-zoom-container"><img src="page8.jpg" alt="8페이지"></div></div>
-        <div class="swiper-slide"><div class="swiper-zoom-container"><img src="page9.jpg" alt="9페이지"></div></div>
-        <div class="swiper-slide"><div class="swiper-zoom-container"><img src="page10.jpg" alt="10페이지"></div></div>
+      <div class="buttons">
+        <button onclick="toggleThumbs()">목록</button>
+        <button onclick="zoomOut()">－</button>
+        <button onclick="zoomIn()">＋</button>
+        <button onclick="toggleFullscreen()">전체화면</button>
+      </div>
     </div>
-    
-    <!-- 하단 페이지 도트 -->
-    <div class="swiper-pagination"></div>
-</div>
 
-<script src="https://cdn.jsdelivr.net/npm/swiper@11/swiper-bundle.min.js"></script>
-<script>
-    const swiper = new Swiper(".mySwiper", {
-        effect: "slide", 
-        zoom: {
-            maxRatio: 3, 
-            toggle: true, // 더블 클릭/터치 시 확대 유지
-        },
-        speed: 400, 
-        grabCursor: true,
-        keyboard: true,
-        pagination: {
-            el: ".swiper-pagination",
-            clickable: true,
-        },
-        
-        // [핵심 변경] 투명 막 대신, 슬라이더 자체의 클릭 이벤트를 감지하여 좌우 이동 처리
-        on: {
-            click: function (e) {
-                // 이미지가 확대된 상태(배율이 1보다 클 때)에는 클릭 이동을 작동시키지 않음 (확대 상태 이동 방해 금지)
-                if (this.zoom && this.zoom.scale > 1) return;
+    <div class="slide-area">
+      <div class="nav-zone nav-left" onclick="prevSlide()">
+        <div class="arrow">‹</div>
+      </div>
 
-                const windowWidth = window.innerWidth;
-                const clickX = e.clientX; // 사용자가 클릭한 가로 좌표
+      <div class="slide-box" id="slideBox">
+        <img id="slideImg" class="slide-img" src="page1.jpg" alt="newsletter page">
+      </div>
 
-                // 화면의 왼쪽 30% 영역을 클릭하면 이전 페이지로
-                if (clickX < windowWidth * 0.3) {
-                    this.slidePrev();
-                } 
-                // 그 외 영역(오른쪽 70%)을 클릭하면 다음 페이지로
-                else {
-                    this.slideNext();
-                }
-            }
-        }
+      <div class="nav-zone nav-right" onclick="nextSlide()">
+        <div class="arrow">›</div>
+      </div>
+
+      <div class="thumbs" id="thumbs"></div>
+    </div>
+
+    <div class="bottom-bar">
+      <button id="prevBtn" onclick="prevSlide()">이전</button>
+      <input type="range" id="pageSlider" min="1" max="10" value="1">
+      <div class="page-info" id="pageInfo">1 / 10</div>
+      <button id="nextBtn" onclick="nextSlide()">다음</button>
+    </div>
+  </div>
+
+  <script>
+    const totalPages = 10;
+
+    // 이미지가 png라면 "jpg"를 "png"로 바꾸세요.
+    const imageExtension = "jpg";
+
+    let currentPage = 1;
+    let zoom = 1;
+
+    const slideImg = document.getElementById("slideImg");
+    const slideBox = document.getElementById("slideBox");
+    const pageInfo = document.getElementById("pageInfo");
+    const slider = document.getElementById("pageSlider");
+    const prevBtn = document.getElementById("prevBtn");
+    const nextBtn = document.getElementById("nextBtn");
+    const thumbs = document.getElementById("thumbs");
+
+    function imagePath(pageNumber) {
+      return `page${pageNumber}.${imageExtension}`;
+    }
+
+    function renderSlide() {
+      slideImg.classList.add("fade");
+
+      setTimeout(() => {
+        slideImg.src = imagePath(currentPage);
+        pageInfo.textContent = `${currentPage} / ${totalPages}`;
+        slider.value = currentPage;
+
+        prevBtn.disabled = currentPage === 1;
+        nextBtn.disabled = currentPage === totalPages;
+
+        updateActiveThumb();
+        slideImg.classList.remove("fade");
+      }, 150);
+    }
+
+    function nextSlide() {
+      if (currentPage < totalPages) {
+        currentPage++;
+        renderSlide();
+      }
+    }
+
+    function prevSlide() {
+      if (currentPage > 1) {
+        currentPage--;
+        renderSlide();
+      }
+    }
+
+    slider.addEventListener("input", function () {
+      currentPage = Number(this.value);
+      renderSlide();
     });
-</script>
 
+    function zoomIn() {
+      zoom = Math.min(zoom + 0.15, 2);
+      applyZoom();
+    }
+
+    function zoomOut() {
+      zoom = Math.max(zoom - 0.15, 0.7);
+      applyZoom();
+    }
+
+    function applyZoom() {
+      slideBox.style.transform = `scale(${zoom})`;
+    }
+
+    function toggleFullscreen() {
+      if (!document.fullscreenElement) {
+        document.documentElement.requestFullscreen();
+      } else {
+        document.exitFullscreen();
+      }
+    }
+
+    function toggleThumbs() {
+      thumbs.classList.toggle("show");
+    }
+
+    function createThumbs() {
+      thumbs.innerHTML = "";
+
+      for (let i = 1; i <= totalPages; i++) {
+        const thumb = document.createElement("div");
+        thumb.className = "thumb";
+        thumb.dataset.page = i;
+
+        const img = document.createElement("img");
+        img.src = imagePath(i);
+        img.alt = `page ${i}`;
+
+        thumb.appendChild(img);
+
+        thumb.addEventListener("click", () => {
+          currentPage = i;
+          renderSlide();
+          thumbs.classList.remove("show");
+        });
+
+        thumbs.appendChild(thumb);
+      }
+    }
+
+    function updateActiveThumb() {
+      document.querySelectorAll(".thumb").forEach(thumb => {
+        const page = Number(thumb.dataset.page);
+        thumb.classList.toggle("active", page === currentPage);
+      });
+    }
+
+    document.addEventListener("keydown", function (e) {
+      if (e.key === "ArrowRight") nextSlide();
+      if (e.key === "ArrowLeft") prevSlide();
+      if (e.key === "+") zoomIn();
+      if (e.key === "-") zoomOut();
+      if (e.key === "Escape") thumbs.classList.remove("show");
+    });
+
+    let touchStartX = 0;
+
+    document.addEventListener("touchstart", function (e) {
+      touchStartX = e.changedTouches[0].screenX;
+    });
+
+    document.addEventListener("touchend", function (e) {
+      const touchEndX = e.changedTouches[0].screenX;
+      const diff = touchStartX - touchEndX;
+
+      if (Math.abs(diff) > 50) {
+        if (diff > 0) nextSlide();
+        else prevSlide();
+      }
+    });
+
+    createThumbs();
+    renderSlide();
+  </script>
 </body>
 </html>
