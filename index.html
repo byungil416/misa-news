@@ -20,7 +20,7 @@
         .swiper {
             width: 100%;
             height: 100%;
-            max-width: 500px; /* PC/모바일 모두 세로형 책자 느낌을 주도록 가로폭 최적화 */
+            max-width: 500px; /* 모바일/PC 모두 깔끔한 세로형 레이아웃 유지 */
             margin: 0 auto;
         }
         .swiper-slide {
@@ -28,9 +28,6 @@
             justify-content: center;
             align-items: center;
             background: #f0f2f5;
-            /* 3D 플립 효과 시 뒷면이 비치는 현상 방지 */
-            -webkit-backface-visibility: hidden;
-            backface-visibility: hidden;
         }
         .swiper-zoom-container {
             width: 100%;
@@ -43,11 +40,11 @@
             max-width: 95%;
             max-height: 90vh;
             object-fit: contain;
-            box-shadow: 0 10px 25px rgba(0,0,0,0.2);
+            box-shadow: 0 10px 25px rgba(0,0,0,0.15);
             background: #fff;
             border-radius: 4px;
         }
-        /* 이동 화살표 및 하단 페이지 표시 색상 */
+        /* 좌우 화살표 및 페이지 도트 색상 */
         .swiper-button-next, .swiper-button-prev {
             color: #1a73e8; 
         }
@@ -85,18 +82,15 @@
 <script src="https://cdn.jsdelivr.net/npm/swiper@11/swiper-bundle.min.js"></script>
 <script>
     const swiper = new Swiper(".mySwiper", {
-        // 1. 진짜 책처럼 입체적으로 뒤집히는 3D Flip 효과 강제 적용
-        effect: "flip",
-        flipEffect: {
-            slideShadows: true, // 넘겨질 때 책 안쪽에 입체적인 그림자 생성
-            limitRotation: true,
-        },
-        // 2. 완벽한 손가락 확대 및 더블 터치 확대 기능 결합
+        // [수정] 효과를 기본 옆으로 슬라이드("slide")로 변경
+        effect: "slide", 
+        
+        // 완벽한 손가락 확대 및 더블 터치 확대 기능 유지
         zoom: {
             maxRatio: 3, // 최대 3배 확대
-            toggle: true, // 더블 터치 시 확대/축소 토글
+            toggle: true, // 더블 터치 시 확대/축소
         },
-        speed: 600, // 책장 넘어가는 속도 (ms)
+        speed: 400, // 슬라이드 넘어가는 속도 부드럽게 조정
         grabCursor: true,
         keyboard: true,
         navigation: {
