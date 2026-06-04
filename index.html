@@ -34,16 +34,16 @@
             background-color: #fdfdfd;
             overflow: hidden;
         }
-        /* 확대 기능을 위해 page-content 구조 개선 */
         .page-content {
             width: 100%;
             height: 100%;
             overflow: hidden;
             position: relative;
         }
-        .pinch-zoom-container {
-            width: 100%;
-            height: 100%;
+        /* [중요] 확대 라이브러리가 높이를 0으로 만드는 버그를 방지하기 위해 강제 지정 */
+        .pinch-zoom, .pinch-zoom-container {
+            width: 100% !important;
+            height: 100% !important;
         }
         .page-content img {
             width: 100%;
@@ -66,7 +66,6 @@
 
 <div class="container">
     <div class="flip-book" id="book">
-        <!-- 각 페이지마다 pinch-zoom 클래스를 부여하여 개별 확대가 가능하게 합니다 -->
         <div class="page"><div class="page-content"><div class="pinch-zoom"><img src="page1.jpg" alt="1페이지"></div></div></div>
         <div class="page"><div class="page-content"><div class="pinch-zoom"><img src="page2.jpg" alt="2페이지"></div></div></div>
         <div class="page"><div class="page-content"><div class="pinch-zoom"><img src="page3.jpg" alt="3페이지"></div></div></div>
@@ -80,12 +79,12 @@
     </div>
 </div>
 
-<!-- 플립북 라이브러리 및 확대 라이브러리 로드 -->
+<!-- 플립북 및 호환성이 검증된 UMD 버전의 확대 라이브러리 로드 -->
 <script src="https://cdn.jsdelivr.net/npm/page-flip@0.4.3/dist/js/page-flip.browser.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/pinch-zoom-js@2.3.4/dist/pinch-zoom.min.js"></script>
+<script src="https://unpkg.com/pinch-zoom-js@2.3.5/dist/pinch-zoom.umd.js"></script>
 <script>
     document.addEventListener("DOMContentLoaded", function() {
-        // 1. 플립북 초기화
+        // 1. 플립북 기능 구동
         const pageFlip = new St.PageFlip(document.getElementById("book"), {
             width: 400, 
             height: 560,
@@ -101,13 +100,13 @@
 
         pageFlip.loadFromHTML(document.querySelectorAll(".page"));
 
-        // 2. 모든 페이지에 손가락 확대(Pinch Zoom) 기능 바인딩
-        const el = document.querySelectorAll('.pinch-zoom');
-        el.forEach(function(element) {
-            new PinchZoom(element, {
-                draggableUnzoomed: false, // 평소에는 드래그 차단 (페이지 넘김 방해 안 되게)
+        // 2. 오류가 수정된 방식으로 확대 기능 결합 (PinchZoom.default 호출)
+        const elements = document.querySelectorAll('.pinch-zoom');
+        elements.forEach(function(el) {
+            new PinchZoom.default(el, {
+                draggableUnzoomed: false, // 평소에는 드래그를 막아 페이지 넘김이 잘 되도록 설정
                 minZoom: 1,
-                maxZoom: 4 // 최대 4배까지 확대 가능
+                maxZoom: 4 // 최대 4배 확대
             });
         });
     });
