@@ -5,22 +5,24 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
     <title>정상어학원 이달의 소식지</title>
     <style>
-        body {
+body {
             background-color: #f0f2f5;
             margin: 0;
             padding: 0;
             display: flex;
             justify-content: center;
             align-items: center;
-            height: 100vh;
+            min-height: 100vh; /* height를 min-height로 변경 */
             font-family: sans-serif;
-            overflow: hidden;
+            /* [수정] 모바일에서 두 손가락 확대가 가능하도록 잠금 해제 */
+            overflow: auto; 
             -webkit-tap-highlight-color: transparent; 
         }
         .container {
             width: 100%;
             max-width: 900px;
-            height: 80vh;
+            /* [수정] 확대 시 내용이 잘리지 않도록 유연하게 변경 */
+            padding: 20px 0;
             display: flex;
             justify-content: center;
             align-items: center;
