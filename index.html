@@ -49,30 +49,6 @@
         .swiper-pagination-bullet-active {
             background: #1a73e8;
         }
-
-        /* [수정] 투명 클릭 영역이 스와이프(드래그) 터치를 방해하지 않도록 개선 */
-        .click-zones {
-            position: absolute;
-            left: 0;
-            top: 0;
-            width: 100%;
-            height: 100%;
-            z-index: 10;
-            display: flex;
-            pointer-events: none; /* 하위 요소인 슬라이더에 터치 이벤트를 통과시킴 */
-        }
-        .zone-left {
-            width: 30%;
-            height: 100%;
-            cursor: pointer;
-            pointer-events: auto; /* 클릭 영역만 선택적으로 터치 허용 */
-        }
-        .zone-right {
-            width: 70%;
-            height: 100%;
-            cursor: pointer;
-            pointer-events: auto; /* 클릭 영역만 선택적으로 터치 허용 */
-        }
     </style>
 </head>
 <body>
@@ -83,14 +59,8 @@
     <img src="page6.jpg"><img src="page7.jpg"><img src="page8.jpg"><img src="page9.jpg"><img src="page10.jpg">
 </div>
 
-<!-- 소식지 본체 -->
+<!-- 소식지 본체 (방해하던 투명 click-zone 태그들을 완전히 삭제했습니다) -->
 <div class="swiper mySwiper">
-    <!-- [구조 개선] 클릭 감지 영역 레이아웃 변경 -->
-    <div class="click-zones">
-        <div class="zone-left" onclick="swiper.slidePrev()"></div>
-        <div class="zone-right" onclick="swiper.slideNext()"></div>
-    </div>
-
     <div class="swiper-wrapper">
         <div class="swiper-slide"><div class="swiper-zoom-container"><img src="page1.jpg" alt="1페이지"></div></div>
         <div class="swiper-slide"><div class="swiper-zoom-container"><img src="page2.jpg" alt="2페이지"></div></div>
@@ -112,10 +82,9 @@
 <script>
     const swiper = new Swiper(".mySwiper", {
         effect: "slide", 
-        touchStartPreventDefault: false, /* 모바일 스와이프 감도 개선 */
         zoom: {
             maxRatio: 3, 
-            toggle: true, 
+            toggle: true, // 더블 클릭/터치 시 확대 유지
         },
         speed: 400, 
         grabCursor: true,
@@ -124,6 +93,26 @@
             el: ".swiper-pagination",
             clickable: true,
         },
+        
+        // [핵심 변경] 투명 막 대신, 슬라이더 자체의 클릭 이벤트를 감지하여 좌우 이동 처리
+        on: {
+            click: function (e) {
+                // 이미지가 확대된 상태(배율이 1보다 클 때)에는 클릭 이동을 작동시키지 않음 (확대 상태 이동 방해 금지)
+                if (this.zoom && this.zoom.scale > 1) return;
+
+                const windowWidth = window.innerWidth;
+                const clickX = e.clientX; // 사용자가 클릭한 가로 좌표
+
+                // 화면의 왼쪽 30% 영역을 클릭하면 이전 페이지로
+                if (clickX < windowWidth * 0.3) {
+                    this.slidePrev();
+                } 
+                // 그 외 영역(오른쪽 70%)을 클릭하면 다음 페이지로
+                else {
+                    this.slideNext();
+                }
+            }
+        }
     });
 </script>
 
