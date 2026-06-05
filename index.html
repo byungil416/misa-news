@@ -76,11 +76,6 @@
       align-items: center;
       justify-content: center;
       overflow: hidden;
-
-      /*
-        모바일에서 기본 터치 동작 허용.
-        실제 페이지 넘김 여부는 JS에서 제어합니다.
-      */
       touch-action: manipulation;
     }
 
@@ -152,7 +147,7 @@
     }
 
     .bottom-bar {
-      height: 88px;
+      height: 96px;
       display: flex;
       align-items: center;
       justify-content: center;
@@ -160,6 +155,13 @@
       padding: 12px 20px;
       background: rgba(0, 0, 0, 0.55);
       z-index: 10;
+    }
+
+    .bottom-center {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 8px;
     }
 
     .page-info {
@@ -173,10 +175,35 @@
       accent-color: white;
     }
 
+    .dots {
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      gap: 7px;
+    }
+
+    .dot {
+      width: 9px;
+      height: 9px;
+      border-radius: 50%;
+      background: rgba(255, 255, 255, 0.35);
+      cursor: pointer;
+      transition: transform 0.2s ease, background 0.2s ease;
+    }
+
+    .dot.active {
+      background: #fff;
+      transform: scale(1.35);
+    }
+
+    .dot:hover {
+      background: rgba(255, 255, 255, 0.75);
+    }
+
     .thumbs {
       position: absolute;
       left: 50%;
-      bottom: 100px;
+      bottom: 108px;
       transform: translateX(-50%);
       width: min(92vw, 900px);
       display: none;
@@ -231,13 +258,26 @@
       }
 
       .bottom-bar {
-        height: 76px;
+        height: 92px;
         gap: 8px;
         padding: 10px;
       }
 
+      .bottom-center {
+        gap: 7px;
+      }
+
       input[type="range"] {
         width: 38vw;
+      }
+
+      .dots {
+        gap: 6px;
+      }
+
+      .dot {
+        width: 7px;
+        height: 7px;
       }
 
       .page-info {
@@ -247,11 +287,15 @@
 
       .slide-img {
         max-width: 94vw;
-        max-height: calc(100vh - 130px);
+        max-height: calc(100vh - 140px);
       }
 
       .arrow {
         font-size: 46px;
+      }
+
+      .thumbs {
+        bottom: 102px;
       }
     }
   </style>
@@ -288,7 +332,12 @@
 
     <div class="bottom-bar">
       <button id="prevBtn" onclick="prevSlide()">이전</button>
-      <input type="range" id="pageSlider" min="1" max="10" value="1">
+
+      <div class="bottom-center">
+        <input type="range" id="pageSlider" min="1" max="10" value="1">
+        <div class="dots" id="dots"></div>
+      </div>
+
       <div class="page-info" id="pageInfo">1 / 10</div>
       <button id="nextBtn" onclick="nextSlide()">다음</button>
     </div>
@@ -311,6 +360,7 @@
     const prevBtn = document.getElementById("prevBtn");
     const nextBtn = document.getElementById("nextBtn");
     const thumbs = document.getElementById("thumbs");
+    const dots = document.getElementById("dots");
 
     function imagePath(pageNumber) {
       return `page${pageNumber}.${imageExtension}`;
@@ -328,6 +378,8 @@
         nextBtn.disabled = currentPage === totalPages;
 
         updateActiveThumb();
+        updateActiveDot();
+
         slideImg.classList.remove("fade");
       }, 150);
     }
@@ -346,12 +398,13 @@
       }
     }
 
-    /*
-      확대 상태 확인 함수
+    function goToPage(pageNumber) {
+      if (pageNumber < 1 || pageNumber > totalPages) return;
 
-      1. + 버튼으로 확대한 경우: zoom 값 확인
-      2. 모바일 브라우저에서 손가락으로 확대된 경우: visualViewport.scale 확인
-    */
+      currentPage = pageNumber;
+      renderSlide();
+    }
+
     function isZoomedIn() {
       if (zoom > 1.01) return true;
 
@@ -362,9 +415,6 @@
       return false;
     }
 
-    /*
-      pinch 후 발생하는 click 오작동 방지용
-    */
     let blockClickUntil = 0;
 
     function isClickBlocked() {
@@ -375,12 +425,6 @@
       blockClickUntil = Date.now() + 500;
     }
 
-    /*
-      좌우 클릭 영역용 안전 함수
-
-      확대된 상태에서도 왼쪽/오른쪽을 '톡' 클릭하면 페이지 이동 가능
-      단, pinch 직후 또는 드래그 직후에는 클릭 차단
-    */
     function safeNextSlide(e) {
       if (isClickBlocked()) {
         if (e) {
@@ -405,11 +449,6 @@
       prevSlide();
     }
 
-    /*
-      캡처 단계에서 click 차단
-
-      pinch 또는 확대 상태 드래그 후에 nav-zone onclick이 실행되는 문제 방지
-    */
     document.addEventListener("click", function (e) {
       if (isClickBlocked()) {
         e.preventDefault();
@@ -466,8 +505,7 @@
         thumb.addEventListener("click", () => {
           if (isClickBlocked()) return;
 
-          currentPage = i;
-          renderSlide();
+          goToPage(i);
           thumbs.classList.remove("show");
         });
 
@@ -482,6 +520,32 @@
       });
     }
 
+    function createDots() {
+      dots.innerHTML = "";
+
+      for (let i = 1; i <= totalPages; i++) {
+        const dot = document.createElement("div");
+        dot.className = "dot";
+        dot.dataset.page = i;
+        dot.title = `${i}페이지`;
+
+        dot.addEventListener("click", () => {
+          if (isClickBlocked()) return;
+
+          goToPage(i);
+        });
+
+        dots.appendChild(dot);
+      }
+    }
+
+    function updateActiveDot() {
+      document.querySelectorAll(".dot").forEach(dot => {
+        const page = Number(dot.dataset.page);
+        dot.classList.toggle("active", page === currentPage);
+      });
+    }
+
     document.addEventListener("keydown", function (e) {
       if (e.key === "ArrowRight") nextSlide();
       if (e.key === "ArrowLeft") prevSlide();
@@ -489,16 +553,6 @@
       if (e.key === "-") zoomOut();
       if (e.key === "Escape") thumbs.classList.remove("show");
     });
-
-    /*
-      모바일 터치 처리
-
-      원하는 동작:
-      - 확대 안 된 상태에서 한 손가락 좌우 스와이프: 페이지 넘김
-      - 확대된 상태에서 한 손가락 좌우 스와이프: 페이지 안 넘김
-      - 확대된 상태에서 왼쪽/오른쪽 클릭: 페이지 넘김
-      - 두 손가락 확대/축소: 페이지 안 넘김
-    */
 
     let touchStartX = 0;
     let touchStartY = 0;
@@ -549,11 +603,6 @@
 
       const elapsed = Date.now() - touchStartTime;
 
-      /*
-        두 손가락 확대/축소 중이었다면
-        페이지 넘김도 막고,
-        뒤이어 발생할 수 있는 click도 막음
-      */
       if (isPinching) {
         if (e.touches.length === 0) {
           isPinching = false;
@@ -565,16 +614,12 @@
 
       /*
         확대된 상태에서는 스와이프로 페이지 넘김 금지.
-
-        단, 거의 움직이지 않은 '톡' 터치는 클릭으로 인정합니다.
-        그래서 확대된 상태에서도 왼쪽/오른쪽 영역을 클릭하면 페이지가 넘어갑니다.
+        단, 거의 움직이지 않고 톡 누른 경우는 클릭으로 인정합니다.
       */
       if (isZoomedIn()) {
         const isTap = absX < 10 && absY < 10;
 
         if (!isTap) {
-          // 확대된 상태에서 옆부분을 보려고 움직인 경우
-          // 뒤이어 발생하는 click까지 차단
           blockClickTemporarily();
         }
 
@@ -588,7 +633,7 @@
       }
 
       /*
-        확대되지 않은 상태에서만 스와이프로 페이지 넘김
+        확대되지 않은 상태에서만 좌우 스와이프로 페이지 넘김
       */
       if (absX > 70 && absX > absY * 1.5 && elapsed < 900) {
         blockClickTemporarily();
@@ -610,6 +655,7 @@
     }, { passive: true });
 
     createThumbs();
+    createDots();
     renderSlide();
   </script>
 </body>
