@@ -434,12 +434,26 @@
       slideBox.style.transform = `translate(${panX}px, ${panY}px) scale(${zoom})`;
     }
 
-    function resetZoom() {
-      zoom = 1;
-      panX = 0;
-      panY = 0;
-      applyTransform();
-    }
+function resetZoom() {
+  zoom = 1;
+  panX = 0;
+  panY = 0;
+
+  /*
+    전체화면 전환 직후에는 화면 크기 계산이 늦게 반영될 수 있어서
+    requestAnimationFrame으로 한 번 더 안정적으로 적용합니다.
+  */
+  slideBox.style.transition = "none";
+  applyTransform();
+
+  requestAnimationFrame(() => {
+    applyTransform();
+
+    requestAnimationFrame(() => {
+      slideBox.style.transition = "transform 0.18s ease";
+    });
+  });
+}
 
     function zoomIn() {
       zoom = Math.min(zoom + 0.2, maxZoom);
@@ -492,12 +506,21 @@
     }
 
     document.addEventListener("click", function (e) {
-      if (isClickBlocked()) {
-        e.preventDefault();
-        e.stopPropagation();
-        e.stopImmediatePropagation();
-      }
-    }, true);
+  /*
+    확대/드래그 직후 생기는 잘못된 클릭은 막되,
+    상단 버튼들은 항상 클릭 가능하게 둡니다.
+    특히 전체화면 상태에서 '화면맞춤' 버튼이 막히는 문제를 방지합니다.
+  */
+  if (e.target.closest(".topbar button")) {
+    return;
+  }
+
+  if (isClickBlocked()) {
+    e.preventDefault();
+    e.stopPropagation();
+    e.stopImmediatePropagation();
+  }
+}, true);
 
     function toggleFullscreen() {
       if (!document.fullscreenElement) {
