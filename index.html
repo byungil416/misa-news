@@ -77,6 +77,11 @@
       align-items: center;
       justify-content: center;
       overflow: hidden;
+
+      /*
+        모바일 브라우저 기본 확대/스크롤을 막고,
+        JS로 직접 확대/이동/스와이프를 처리합니다.
+      */
       touch-action: none;
     }
 
@@ -361,7 +366,6 @@
 
     /*
       zoom = 1 이 화면맞춤 상태입니다.
-      모바일에서도 처음에는 항상 화면맞춤으로 보입니다.
     */
     let zoom = 1;
     let panX = 0;
@@ -578,6 +582,10 @@
       if (e.key === "Escape") thumbs.classList.remove("show");
     });
 
+    /*
+      모바일 터치 처리
+    */
+
     let touchStartX = 0;
     let touchStartY = 0;
     let touchStartTime = 0;
@@ -594,6 +602,32 @@
       const dx = touch1.clientX - touch2.clientX;
       const dy = touch1.clientY - touch2.clientY;
       return Math.sqrt(dx * dx + dy * dy);
+    }
+
+    /*
+      모바일에서 왼쪽/오른쪽 영역을 톡 눌렀을 때 페이지 넘김
+      - 왼쪽 25% 영역: 이전 페이지
+      - 오른쪽 25% 영역: 다음 페이지
+      - 가운데 영역: 아무 동작 없음
+    */
+    function handleTapPageTurn(tapX) {
+      const rect = slideArea.getBoundingClientRect();
+      const relativeX = tapX - rect.left;
+      const width = rect.width;
+
+      if (relativeX < width * 0.25) {
+        prevSlide();
+        blockClickTemporarily();
+        return true;
+      }
+
+      if (relativeX > width * 0.75) {
+        nextSlide();
+        blockClickTemporarily();
+        return true;
+      }
+
+      return false;
     }
 
     slideArea.addEventListener("touchstart", function (e) {
@@ -689,16 +723,23 @@
       const elapsed = Date.now() - touchStartTime;
 
       /*
-        확대 상태에서는 스와이프로 페이지 넘김 금지.
-        단, 거의 움직이지 않은 톡 터치는 클릭으로 인정합니다.
+        거의 움직이지 않고 톡 누른 경우:
+        확대 여부와 상관없이 왼쪽/오른쪽 영역이면 페이지 넘김
+      */
+      const isTap = absX < 10 && absY < 10;
+
+      if (isTap) {
+        handleTapPageTurn(touchEndX);
+        isTouching = false;
+        return;
+      }
+
+      /*
+        확대 상태에서는 드래그로 페이지 넘김 금지
+        → 확대된 이미지의 옆부분을 보는 동작으로 처리
       */
       if (isZoomedIn()) {
-        const isTap = absX < 10 && absY < 10;
-
-        if (!isTap) {
-          blockClickTemporarily();
-        }
-
+        blockClickTemporarily();
         isTouching = false;
         return;
       }
