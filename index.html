@@ -73,6 +73,9 @@
       align-items: center;
       justify-content: center;
       overflow: hidden;
+
+      /* 모바일 확대/축소와 스와이프 충돌 방지 */
+      touch-action: pan-x pan-y pinch-zoom;
     }
 
     .slide-box {
@@ -93,6 +96,8 @@
       border-radius: 8px;
       transition: opacity 0.25s ease, transform 0.25s ease;
       user-select: none;
+      -webkit-user-select: none;
+      -webkit-user-drag: none;
     }
 
     .slide-img.fade {
@@ -259,7 +264,7 @@
       </div>
     </div>
 
-    <div class="slide-area">
+    <div class="slide-area" id="slideArea">
       <div class="nav-zone nav-left" onclick="prevSlide()">
         <div class="arrow">‹</div>
       </div>
@@ -404,21 +409,69 @@
       if (e.key === "Escape") thumbs.classList.remove("show");
     });
 
+    /*
+      모바일 터치 보완 코드
+      - 한 손가락 좌우 스와이프: 페이지 넘김
+      - 두 손가락 확대/축소: 페이지 넘김 방지
+      - 세로 스크롤 느낌의 움직임: 페이지 넘김 방지
+    */
+
     let touchStartX = 0;
+    let touchStartY = 0;
+    let isPinching = false;
+    let pinchEndedAt = 0;
 
     document.addEventListener("touchstart", function (e) {
+      if (e.touches.length > 1) {
+        isPinching = true;
+        return;
+      }
+
       touchStartX = e.changedTouches[0].screenX;
-    });
+      touchStartY = e.changedTouches[0].screenY;
+    }, { passive: true });
+
+    document.addEventListener("touchmove", function (e) {
+      if (e.touches.length > 1) {
+        isPinching = true;
+      }
+    }, { passive: true });
 
     document.addEventListener("touchend", function (e) {
-      const touchEndX = e.changedTouches[0].screenX;
-      const diff = touchStartX - touchEndX;
-
-      if (Math.abs(diff) > 50) {
-        if (diff > 0) nextSlide();
-        else prevSlide();
+      if (isPinching) {
+        if (e.touches.length === 0) {
+          isPinching = false;
+          pinchEndedAt = Date.now();
+        }
+        return;
       }
-    });
+
+      if (Date.now() - pinchEndedAt < 300) {
+        return;
+      }
+
+      const touchEndX = e.changedTouches[0].screenX;
+      const touchEndY = e.changedTouches[0].screenY;
+
+      const diffX = touchStartX - touchEndX;
+      const diffY = touchStartY - touchEndY;
+
+      if (Math.abs(diffY) > Math.abs(diffX)) {
+        return;
+      }
+
+      if (Math.abs(diffX) > 60) {
+        if (diffX > 0) {
+          nextSlide();
+        } else {
+          prevSlide();
+        }
+      }
+    }, { passive: true });
+
+    document.addEventListener("touchcancel", function () {
+      isPinching = false;
+    }, { passive: true });
 
     createThumbs();
     renderSlide();
