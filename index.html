@@ -3,8 +3,8 @@
 <head>
   <meta charset="UTF-8" />
 
-  <!-- 모바일 확대 허용 -->
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <!-- 모바일 화면맞춤 기준 -->
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no" />
 
   <title>Newsletter Slide Viewer</title>
 
@@ -77,7 +77,13 @@
       align-items: center;
       justify-content: center;
       overflow: hidden;
-      touch-action: manipulation;
+
+      /*
+        중요:
+        모바일 브라우저 기본 확대/스크롤을 막고,
+        JS로 직접 확대/이동을 처리합니다.
+      */
+      touch-action: none;
     }
 
     .slide-box {
@@ -86,7 +92,9 @@
       display: flex;
       align-items: center;
       justify-content: center;
-      transition: transform 0.25s ease;
+      transition: transform 0.18s ease;
+      transform-origin: center center;
+      will-change: transform;
     }
 
     .slide-img {
@@ -100,6 +108,7 @@
       user-select: none;
       -webkit-user-select: none;
       -webkit-user-drag: none;
+      pointer-events: none;
     }
 
     .slide-img.fade {
@@ -147,9 +156,6 @@
       opacity: 0.75;
     }
 
-    /*
-      하단에는 동그라미만 표시
-    */
     .bottom-dots-bar {
       min-height: 54px;
       height: auto;
@@ -318,6 +324,7 @@
         <button onclick="toggleThumbs()">목록</button>
         <button onclick="zoomOut()">－</button>
         <button onclick="zoomIn()">＋</button>
+        <button onclick="resetZoom()">화면맞춤</button>
         <button onclick="toggleFullscreen()">전체화면</button>
       </div>
     </div>
@@ -338,7 +345,6 @@
       <div class="thumbs" id="thumbs"></div>
     </div>
 
-    <!-- 하단에는 동그라미만 표시 -->
     <div class="bottom-dots-bar">
       <div class="dots" id="dots"></div>
     </div>
@@ -359,7 +365,17 @@
     const imageExtension = "jpg";
 
     let currentPage = 1;
+
+    /*
+      zoom = 1 이 화면맞춤 상태입니다.
+      모바일에서도 처음에는 항상 화면맞춤으로 보입니다.
+    */
     let zoom = 1;
+    let panX = 0;
+    let panY = 0;
+
+    const minZoom = 1;
+    const maxZoom = 3;
 
     const slideArea = document.getElementById("slideArea");
     const slideImg = document.getElementById("slideImg");
@@ -376,6 +392,11 @@
 
       setTimeout(() => {
         slideImg.src = imagePath(currentPage);
+
+        /*
+          페이지가 바뀌면 다시 화면맞춤으로 초기화
+        */
+        resetZoom();
 
         updateActiveThumb();
         updateActiveDot();
@@ -406,13 +427,34 @@
     }
 
     function isZoomedIn() {
-      if (zoom > 1.01) return true;
+      return zoom > 1.01;
+    }
 
-      if (window.visualViewport && window.visualViewport.scale > 1.01) {
-        return true;
+    function applyTransform() {
+      slideBox.style.transform = `translate(${panX}px, ${panY}px) scale(${zoom})`;
+    }
+
+    function resetZoom() {
+      zoom = 1;
+      panX = 0;
+      panY = 0;
+      applyTransform();
+    }
+
+    function zoomIn() {
+      zoom = Math.min(zoom + 0.2, maxZoom);
+      applyTransform();
+    }
+
+    function zoomOut() {
+      zoom = Math.max(zoom - 0.2, minZoom);
+
+      if (zoom === 1) {
+        panX = 0;
+        panY = 0;
       }
 
-      return false;
+      applyTransform();
     }
 
     let blockClickUntil = 0;
@@ -422,7 +464,7 @@
     }
 
     function blockClickTemporarily() {
-      blockClickUntil = Date.now() + 500;
+      blockClickUntil = Date.now() + 450;
     }
 
     function safeNextSlide(e) {
@@ -456,20 +498,6 @@
         e.stopImmediatePropagation();
       }
     }, true);
-
-    function zoomIn() {
-      zoom = Math.min(zoom + 0.15, 2);
-      applyZoom();
-    }
-
-    function zoomOut() {
-      zoom = Math.max(zoom - 0.15, 0.7);
-      applyZoom();
-    }
-
-    function applyZoom() {
-      slideBox.style.transform = `scale(${zoom})`;
-    }
 
     function toggleFullscreen() {
       if (!document.fullscreenElement) {
@@ -546,57 +574,104 @@
       if (e.key === "ArrowLeft") prevSlide();
       if (e.key === "+") zoomIn();
       if (e.key === "-") zoomOut();
+      if (e.key === "0") resetZoom();
       if (e.key === "Escape") thumbs.classList.remove("show");
     });
+
+    /*
+      모바일 터치 처리
+
+      - 두 손가락 벌리기/오므리기: 내부 확대/축소
+      - 확대 상태에서 한 손가락 이동: 이미지 이동
+      - 확대 안 된 상태에서 좌우 스와이프: 페이지 넘김
+      - 확대 상태에서 좌우 영역 톡 클릭: 페이지 넘김
+    */
 
     let touchStartX = 0;
     let touchStartY = 0;
     let touchStartTime = 0;
 
+    let lastPanX = 0;
+    let lastPanY = 0;
+
     let isTouching = false;
     let isPinching = false;
+    let startPinchDistance = 0;
+    let startZoom = 1;
+
+    function getDistance(touch1, touch2) {
+      const dx = touch1.clientX - touch2.clientX;
+      const dy = touch1.clientY - touch2.clientY;
+      return Math.sqrt(dx * dx + dy * dy);
+    }
 
     slideArea.addEventListener("touchstart", function (e) {
+      e.preventDefault();
+
       isTouching = true;
 
       if (e.touches.length >= 2) {
         isPinching = true;
+        startPinchDistance = getDistance(e.touches[0], e.touches[1]);
+        startZoom = zoom;
         blockClickTemporarily();
         return;
       }
 
       isPinching = false;
-      touchStartX = e.touches[0].screenX;
-      touchStartY = e.touches[0].screenY;
+
+      touchStartX = e.touches[0].clientX;
+      touchStartY = e.touches[0].clientY;
       touchStartTime = Date.now();
-    }, { passive: true });
+
+      lastPanX = panX;
+      lastPanY = panY;
+    }, { passive: false });
 
     slideArea.addEventListener("touchmove", function (e) {
+      e.preventDefault();
+
+      /*
+        두 손가락 확대/축소
+      */
       if (e.touches.length >= 2) {
         isPinching = true;
+
+        const currentDistance = getDistance(e.touches[0], e.touches[1]);
+        const scale = currentDistance / startPinchDistance;
+
+        zoom = Math.min(Math.max(startZoom * scale, minZoom), maxZoom);
+
+        if (zoom === 1) {
+          panX = 0;
+          panY = 0;
+        }
+
+        applyTransform();
         blockClickTemporarily();
         return;
       }
-    }, { passive: true });
+
+      /*
+        확대된 상태에서 한 손가락 이동
+      */
+      if (isZoomedIn() && e.touches.length === 1) {
+        const currentX = e.touches[0].clientX;
+        const currentY = e.touches[0].clientY;
+
+        const moveX = currentX - touchStartX;
+        const moveY = currentY - touchStartY;
+
+        panX = lastPanX + moveX;
+        panY = lastPanY + moveY;
+
+        applyTransform();
+        blockClickTemporarily();
+      }
+    }, { passive: false });
 
     slideArea.addEventListener("touchend", function (e) {
       if (!isTouching) return;
-
-      if (!e.changedTouches || e.changedTouches.length === 0) {
-        isTouching = false;
-        return;
-      }
-
-      const touchEndX = e.changedTouches[0].screenX;
-      const touchEndY = e.changedTouches[0].screenY;
-
-      const diffX = touchStartX - touchEndX;
-      const diffY = touchStartY - touchEndY;
-
-      const absX = Math.abs(diffX);
-      const absY = Math.abs(diffY);
-
-      const elapsed = Date.now() - touchStartTime;
 
       if (isPinching) {
         if (e.touches.length === 0) {
@@ -607,9 +682,24 @@
         return;
       }
 
+      if (!e.changedTouches || e.changedTouches.length === 0) {
+        isTouching = false;
+        return;
+      }
+
+      const touchEndX = e.changedTouches[0].clientX;
+      const touchEndY = e.changedTouches[0].clientY;
+
+      const diffX = touchStartX - touchEndX;
+      const diffY = touchStartY - touchEndY;
+
+      const absX = Math.abs(diffX);
+      const absY = Math.abs(diffY);
+      const elapsed = Date.now() - touchStartTime;
+
       /*
-        확대된 상태에서는 스와이프로 페이지 넘김 금지.
-        단, 거의 움직이지 않고 톡 누른 경우는 클릭으로 인정합니다.
+        확대 상태에서는 스와이프로 페이지 넘김 금지.
+        단, 거의 움직이지 않은 톡 터치는 클릭으로 인정합니다.
       */
       if (isZoomedIn()) {
         const isTap = absX < 10 && absY < 10;
@@ -628,7 +718,7 @@
       }
 
       /*
-        확대되지 않은 상태에서만 좌우 스와이프로 페이지 넘김
+        화면맞춤 상태에서만 좌우 스와이프로 페이지 넘김
       */
       if (absX > 70 && absX > absY * 1.5 && elapsed < 900) {
         blockClickTemporarily();
@@ -641,13 +731,13 @@
       }
 
       isTouching = false;
-    }, { passive: true });
+    }, { passive: false });
 
     slideArea.addEventListener("touchcancel", function () {
       isTouching = false;
       isPinching = false;
       blockClickTemporarily();
-    }, { passive: true });
+    }, { passive: false });
 
     createThumbs();
     createDots();
