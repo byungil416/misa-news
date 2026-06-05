@@ -78,9 +78,8 @@
       overflow: hidden;
 
       /*
-        중요:
-        브라우저 기본 확대/축소는 허용하되,
-        JS에서 두 손가락 동작과 클릭 오작동을 따로 막습니다.
+        모바일에서 기본 터치 동작 허용.
+        실제 페이지 넘김 여부는 JS에서 제어합니다.
       */
       touch-action: manipulation;
     }
@@ -272,7 +271,6 @@
     </div>
 
     <div class="slide-area" id="slideArea">
-      <!-- onclick을 직접 prevSlide()로 연결하지 않고 safePrevSlide()로 연결 -->
       <div class="nav-zone nav-left" onclick="safePrevSlide(event)">
         <div class="arrow">‹</div>
       </div>
@@ -281,7 +279,6 @@
         <img id="slideImg" class="slide-img" src="page1.jpg" alt="newsletter page">
       </div>
 
-      <!-- onclick을 직접 nextSlide()로 연결하지 않고 safeNextSlide()로 연결 -->
       <div class="nav-zone nav-right" onclick="safeNextSlide(event)">
         <div class="arrow">›</div>
       </div>
@@ -350,10 +347,24 @@
     }
 
     /*
-      중요:
-      모바일 pinch 후 click 이벤트가 늦게 발생하는 경우를 막기 위한 안전 함수
-    */
+      확대 상태 확인 함수
 
+      1. + 버튼으로 확대한 경우: zoom 값 확인
+      2. 모바일 브라우저에서 손가락으로 확대된 경우: visualViewport.scale 확인
+    */
+    function isZoomedIn() {
+      if (zoom > 1.01) return true;
+
+      if (window.visualViewport && window.visualViewport.scale > 1.01) {
+        return true;
+      }
+
+      return false;
+    }
+
+    /*
+      pinch 후 발생하는 click 오작동 방지용
+    */
     let blockClickUntil = 0;
 
     function isClickBlocked() {
@@ -364,6 +375,12 @@
       blockClickUntil = Date.now() + 500;
     }
 
+    /*
+      좌우 클릭 영역용 안전 함수
+
+      확대된 상태에서도 왼쪽/오른쪽을 '톡' 클릭하면 페이지 이동 가능
+      단, pinch 직후 또는 드래그 직후에는 클릭 차단
+    */
     function safeNextSlide(e) {
       if (isClickBlocked()) {
         if (e) {
@@ -389,10 +406,10 @@
     }
 
     /*
-      캡처 단계에서 click 자체를 차단
-      pinch 후 nav-zone onclick이 실행되는 문제 방지
-    */
+      캡처 단계에서 click 차단
 
+      pinch 또는 확대 상태 드래그 후에 nav-zone onclick이 실행되는 문제 방지
+    */
     document.addEventListener("click", function (e) {
       if (isClickBlocked()) {
         e.preventDefault();
@@ -475,9 +492,12 @@
 
     /*
       모바일 터치 처리
-      - 한 손가락 좌우 스와이프: 페이지 넘김
-      - 두 손가락 확대/축소: 페이지 넘김 차단
-      - pinch 후 발생하는 click 이벤트도 차단
+
+      원하는 동작:
+      - 확대 안 된 상태에서 한 손가락 좌우 스와이프: 페이지 넘김
+      - 확대된 상태에서 한 손가락 좌우 스와이프: 페이지 안 넘김
+      - 확대된 상태에서 왼쪽/오른쪽 클릭: 페이지 넘김
+      - 두 손가락 확대/축소: 페이지 안 넘김
     */
 
     let touchStartX = 0;
@@ -486,11 +506,9 @@
 
     let isTouching = false;
     let isPinching = false;
-    let hasMoved = false;
 
     slideArea.addEventListener("touchstart", function (e) {
       isTouching = true;
-      hasMoved = false;
 
       if (e.touches.length >= 2) {
         isPinching = true;
@@ -505,8 +523,6 @@
     }, { passive: true });
 
     slideArea.addEventListener("touchmove", function (e) {
-      hasMoved = true;
-
       if (e.touches.length >= 2) {
         isPinching = true;
         blockClickTemporarily();
@@ -516,25 +532,6 @@
 
     slideArea.addEventListener("touchend", function (e) {
       if (!isTouching) return;
-
-      /*
-        두 손가락 확대/축소 중이었으면
-        페이지 넘김도 막고,
-        뒤이어 발생하는 click도 막음
-      */
-      if (isPinching) {
-        if (e.touches.length === 0) {
-          isPinching = false;
-          isTouching = false;
-          blockClickTemporarily();
-        }
-        return;
-      }
-
-      if (isClickBlocked()) {
-        isTouching = false;
-        return;
-      }
 
       if (!e.changedTouches || e.changedTouches.length === 0) {
         isTouching = false;
@@ -553,10 +550,45 @@
       const elapsed = Date.now() - touchStartTime;
 
       /*
-        조건을 모두 만족할 때만 페이지 넘김
-        1. 가로 이동이 충분히 큼
-        2. 세로 이동보다 가로 이동이 훨씬 큼
-        3. 너무 느린 드래그가 아님
+        두 손가락 확대/축소 중이었다면
+        페이지 넘김도 막고,
+        뒤이어 발생할 수 있는 click도 막음
+      */
+      if (isPinching) {
+        if (e.touches.length === 0) {
+          isPinching = false;
+          isTouching = false;
+          blockClickTemporarily();
+        }
+        return;
+      }
+
+      /*
+        확대된 상태에서는 스와이프로 페이지 넘김 금지.
+
+        단, 거의 움직이지 않은 '톡' 터치는 클릭으로 인정합니다.
+        그래서 확대된 상태에서도 왼쪽/오른쪽 영역을 클릭하면 페이지가 넘어갑니다.
+      */
+      if (isZoomedIn()) {
+        const isTap = absX < 10 && absY < 10;
+
+        if (!isTap) {
+          // 확대된 상태에서 옆부분을 보려고 움직인 경우
+          // 뒤이어 발생하는 click까지 차단
+          blockClickTemporarily();
+        }
+
+        isTouching = false;
+        return;
+      }
+
+      if (isClickBlocked()) {
+        isTouching = false;
+        return;
+      }
+
+      /*
+        확대되지 않은 상태에서만 스와이프로 페이지 넘김
       */
       if (absX > 70 && absX > absY * 1.5 && elapsed < 900) {
         blockClickTemporarily();
