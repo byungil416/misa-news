@@ -2,7 +2,10 @@
 <html lang="ko">
 <head>
   <meta charset="UTF-8" />
+
+  <!-- 모바일 확대 허용 -->
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+
   <title>Newsletter Slide Viewer</title>
 
   <style>
@@ -74,8 +77,12 @@
       justify-content: center;
       overflow: hidden;
 
-      /* 모바일 확대/축소와 스와이프 충돌 방지 */
-      touch-action: pan-x pan-y pinch-zoom;
+      /*
+        중요:
+        브라우저 기본 확대/축소는 허용하되,
+        JS에서 두 손가락 동작과 클릭 오작동을 따로 막습니다.
+      */
+      touch-action: manipulation;
     }
 
     .slide-box {
@@ -265,7 +272,8 @@
     </div>
 
     <div class="slide-area" id="slideArea">
-      <div class="nav-zone nav-left" onclick="prevSlide()">
+      <!-- onclick을 직접 prevSlide()로 연결하지 않고 safePrevSlide()로 연결 -->
+      <div class="nav-zone nav-left" onclick="safePrevSlide(event)">
         <div class="arrow">‹</div>
       </div>
 
@@ -273,7 +281,8 @@
         <img id="slideImg" class="slide-img" src="page1.jpg" alt="newsletter page">
       </div>
 
-      <div class="nav-zone nav-right" onclick="nextSlide()">
+      <!-- onclick을 직접 nextSlide()로 연결하지 않고 safeNextSlide()로 연결 -->
+      <div class="nav-zone nav-right" onclick="safeNextSlide(event)">
         <div class="arrow">›</div>
       </div>
 
@@ -297,6 +306,7 @@
     let currentPage = 1;
     let zoom = 1;
 
+    const slideArea = document.getElementById("slideArea");
     const slideImg = document.getElementById("slideImg");
     const slideBox = document.getElementById("slideBox");
     const pageInfo = document.getElementById("pageInfo");
@@ -338,6 +348,58 @@
         renderSlide();
       }
     }
+
+    /*
+      중요:
+      모바일 pinch 후 click 이벤트가 늦게 발생하는 경우를 막기 위한 안전 함수
+    */
+
+    let blockClickUntil = 0;
+
+    function isClickBlocked() {
+      return Date.now() < blockClickUntil;
+    }
+
+    function blockClickTemporarily() {
+      blockClickUntil = Date.now() + 500;
+    }
+
+    function safeNextSlide(e) {
+      if (isClickBlocked()) {
+        if (e) {
+          e.preventDefault();
+          e.stopPropagation();
+        }
+        return;
+      }
+
+      nextSlide();
+    }
+
+    function safePrevSlide(e) {
+      if (isClickBlocked()) {
+        if (e) {
+          e.preventDefault();
+          e.stopPropagation();
+        }
+        return;
+      }
+
+      prevSlide();
+    }
+
+    /*
+      캡처 단계에서 click 자체를 차단
+      pinch 후 nav-zone onclick이 실행되는 문제 방지
+    */
+
+    document.addEventListener("click", function (e) {
+      if (isClickBlocked()) {
+        e.preventDefault();
+        e.stopPropagation();
+        e.stopImmediatePropagation();
+      }
+    }, true);
 
     slider.addEventListener("input", function () {
       currentPage = Number(this.value);
@@ -385,6 +447,8 @@
         thumb.appendChild(img);
 
         thumb.addEventListener("click", () => {
+          if (isClickBlocked()) return;
+
           currentPage = i;
           renderSlide();
           thumbs.classList.remove("show");
@@ -410,43 +474,70 @@
     });
 
     /*
-      모바일 터치 보완 코드
+      모바일 터치 처리
       - 한 손가락 좌우 스와이프: 페이지 넘김
-      - 두 손가락 확대/축소: 페이지 넘김 방지
-      - 세로 스크롤 느낌의 움직임: 페이지 넘김 방지
+      - 두 손가락 확대/축소: 페이지 넘김 차단
+      - pinch 후 발생하는 click 이벤트도 차단
     */
 
     let touchStartX = 0;
     let touchStartY = 0;
-    let isPinching = false;
-    let pinchEndedAt = 0;
+    let touchStartTime = 0;
 
-    document.addEventListener("touchstart", function (e) {
-      if (e.touches.length > 1) {
+    let isTouching = false;
+    let isPinching = false;
+    let hasMoved = false;
+
+    slideArea.addEventListener("touchstart", function (e) {
+      isTouching = true;
+      hasMoved = false;
+
+      if (e.touches.length >= 2) {
         isPinching = true;
+        blockClickTemporarily();
         return;
       }
 
-      touchStartX = e.changedTouches[0].screenX;
-      touchStartY = e.changedTouches[0].screenY;
+      isPinching = false;
+      touchStartX = e.touches[0].screenX;
+      touchStartY = e.touches[0].screenY;
+      touchStartTime = Date.now();
     }, { passive: true });
 
-    document.addEventListener("touchmove", function (e) {
-      if (e.touches.length > 1) {
+    slideArea.addEventListener("touchmove", function (e) {
+      hasMoved = true;
+
+      if (e.touches.length >= 2) {
         isPinching = true;
+        blockClickTemporarily();
+        return;
       }
     }, { passive: true });
 
-    document.addEventListener("touchend", function (e) {
+    slideArea.addEventListener("touchend", function (e) {
+      if (!isTouching) return;
+
+      /*
+        두 손가락 확대/축소 중이었으면
+        페이지 넘김도 막고,
+        뒤이어 발생하는 click도 막음
+      */
       if (isPinching) {
         if (e.touches.length === 0) {
           isPinching = false;
-          pinchEndedAt = Date.now();
+          isTouching = false;
+          blockClickTemporarily();
         }
         return;
       }
 
-      if (Date.now() - pinchEndedAt < 300) {
+      if (isClickBlocked()) {
+        isTouching = false;
+        return;
+      }
+
+      if (!e.changedTouches || e.changedTouches.length === 0) {
+        isTouching = false;
         return;
       }
 
@@ -456,21 +547,34 @@
       const diffX = touchStartX - touchEndX;
       const diffY = touchStartY - touchEndY;
 
-      if (Math.abs(diffY) > Math.abs(diffX)) {
-        return;
-      }
+      const absX = Math.abs(diffX);
+      const absY = Math.abs(diffY);
 
-      if (Math.abs(diffX) > 60) {
+      const elapsed = Date.now() - touchStartTime;
+
+      /*
+        조건을 모두 만족할 때만 페이지 넘김
+        1. 가로 이동이 충분히 큼
+        2. 세로 이동보다 가로 이동이 훨씬 큼
+        3. 너무 느린 드래그가 아님
+      */
+      if (absX > 70 && absX > absY * 1.5 && elapsed < 900) {
+        blockClickTemporarily();
+
         if (diffX > 0) {
           nextSlide();
         } else {
           prevSlide();
         }
       }
+
+      isTouching = false;
     }, { passive: true });
 
-    document.addEventListener("touchcancel", function () {
+    slideArea.addEventListener("touchcancel", function () {
+      isTouching = false;
       isPinching = false;
+      blockClickTemporarily();
     }, { passive: true });
 
     createThumbs();
