@@ -77,12 +77,6 @@
       align-items: center;
       justify-content: center;
       overflow: hidden;
-
-      /*
-        중요:
-        모바일 브라우저 기본 확대/스크롤을 막고,
-        JS로 직접 확대/이동을 처리합니다.
-      */
       touch-action: none;
     }
 
@@ -324,7 +318,6 @@
         <button onclick="toggleThumbs()">목록</button>
         <button onclick="zoomOut()">－</button>
         <button onclick="zoomIn()">＋</button>
-        <button onclick="resetZoom()">화면맞춤</button>
         <button onclick="toggleFullscreen()">전체화면</button>
       </div>
     </div>
@@ -434,26 +427,12 @@
       slideBox.style.transform = `translate(${panX}px, ${panY}px) scale(${zoom})`;
     }
 
-function resetZoom() {
-  zoom = 1;
-  panX = 0;
-  panY = 0;
-
-  /*
-    전체화면 전환 직후에는 화면 크기 계산이 늦게 반영될 수 있어서
-    requestAnimationFrame으로 한 번 더 안정적으로 적용합니다.
-  */
-  slideBox.style.transition = "none";
-  applyTransform();
-
-  requestAnimationFrame(() => {
-    applyTransform();
-
-    requestAnimationFrame(() => {
-      slideBox.style.transition = "transform 0.18s ease";
-    });
-  });
-}
+    function resetZoom() {
+      zoom = 1;
+      panX = 0;
+      panY = 0;
+      applyTransform();
+    }
 
     function zoomIn() {
       zoom = Math.min(zoom + 0.2, maxZoom);
@@ -506,21 +485,19 @@ function resetZoom() {
     }
 
     document.addEventListener("click", function (e) {
-  /*
-    확대/드래그 직후 생기는 잘못된 클릭은 막되,
-    상단 버튼들은 항상 클릭 가능하게 둡니다.
-    특히 전체화면 상태에서 '화면맞춤' 버튼이 막히는 문제를 방지합니다.
-  */
-  if (e.target.closest(".topbar button")) {
-    return;
-  }
+      /*
+        상단 버튼은 항상 클릭 가능하게 둡니다.
+      */
+      if (e.target.closest(".topbar button")) {
+        return;
+      }
 
-  if (isClickBlocked()) {
-    e.preventDefault();
-    e.stopPropagation();
-    e.stopImmediatePropagation();
-  }
-}, true);
+      if (isClickBlocked()) {
+        e.preventDefault();
+        e.stopPropagation();
+        e.stopImmediatePropagation();
+      }
+    }, true);
 
     function toggleFullscreen() {
       if (!document.fullscreenElement) {
@@ -600,15 +577,6 @@ function resetZoom() {
       if (e.key === "0") resetZoom();
       if (e.key === "Escape") thumbs.classList.remove("show");
     });
-
-    /*
-      모바일 터치 처리
-
-      - 두 손가락 벌리기/오므리기: 내부 확대/축소
-      - 확대 상태에서 한 손가락 이동: 이미지 이동
-      - 확대 안 된 상태에서 좌우 스와이프: 페이지 넘김
-      - 확대 상태에서 좌우 영역 톡 클릭: 페이지 넘김
-    */
 
     let touchStartX = 0;
     let touchStartY = 0;
